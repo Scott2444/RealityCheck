@@ -103,7 +103,9 @@ After building the program, the IDL is generated at:
 program/target/idl/reality_check.json
 ```
 
-Copy its contents to `app/src/lib/idl.ts` (replace the existing IDL object).
+Copy the JSON contents into the `IDL` object in `app/src/lib/idl.ts`. The format matches directly—just paste and replace the existing object.
+
+Also update the `PROGRAM_ID` if your program ID changed.
 
 ### Step 4: Run the Next.js Application
 
@@ -158,9 +160,33 @@ seeds = [b"image", image_hash.as_bytes()]
 
 This allows instant lookup by hash without iteration.
 
+### Image Hashing and File Formats
+
+RealityCheck uses SHA-256 cryptographic hashing on the **raw file bytes**. This means:
+
+| Scenario                              | Same Hash? |
+| ------------------------------------- | ---------- |
+| Same exact file                       | Yes        |
+| JPEG vs PNG of same image             | No         |
+| Same JPEG at different quality levels | No         |
+| Same file re-saved (even same format) | Often No   |
+| Screenshot of the image               | No         |
+| Cropped or resized                    | No         |
+| Same file, different filename         | Yes        |
+
+**Why different formats produce different hashes:**
+
+Each image format encodes pixels differently (JPEG uses lossy DCT compression, PNG uses lossless deflate, etc.). Even metadata differences like EXIF data or timestamps will change the hash. A single bit difference produces a completely different SHA-256 hash.
+
+**This is intentional.** For Proof of Existence and Proof of Authorship, you want to verify the *exact original file*. Any modification—even minor compression—should be detectable.
+
+**Best practice for users:** Register the original file directly from your camera or source. The exact file you register is what can be verified. If you convert, compress, or edit the image later, it will produce a different hash and won't match the blockchain record.
+
+This design is ideal for photographers, journalists, and creators who need to prove they possess the original, unmodified file.
+
 ---
 
-## 🔧 Tech Stack
+## Tech Stack
 
 | Component      | Technology                                      |
 | -------------- | ----------------------------------------------- |
@@ -174,7 +200,7 @@ This allows instant lookup by hash without iteration.
 
 ---
 
-## 🎯 Key Features
+## Key Features
 
 - **Immutable Timestamping**: Proves an image existed at a specific time
 - **Censorship Resistance**: Records stored on blockchain, no central authority
@@ -184,7 +210,7 @@ This allows instant lookup by hash without iteration.
 
 ---
 
-## 📝 API Reference
+## API Reference
 
 ### GET `/api/verify`
 
@@ -219,7 +245,7 @@ Verify an image hash against the blockchain.
 
 ---
 
-## 🔐 Error Handling
+## Error Handling
 
 The smart contract returns the following errors:
 
@@ -232,7 +258,7 @@ Attempting to register the same image twice will fail with an "account already i
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Local Testing with Validator
 

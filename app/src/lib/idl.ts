@@ -2,43 +2,50 @@ import { PublicKey } from "@solana/web3.js";
 
 // Replace this with your deployed program ID after running `anchor deploy`
 export const PROGRAM_ID = new PublicKey(
-    "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+    "HVR5gk2KaeXxV7dNYDUGksNKKGLJENCmetxzkCCpnt5Q",
 );
 
 // IDL for the RealityCheck program
-// This will be auto-generated after building the program with `anchor build`
-// Copy the contents of target/idl/reality_check.json here after building
+// Copy the contents of program/target/idl/reality_check.json here after building
+// The format below matches the Anchor 0.30+ IDL spec
 export const IDL = {
-    address: PROGRAM_ID.toBase58(),
-    version: "0.1.0",
-    name: "reality_check",
+    address: "HVR5gk2KaeXxV7dNYDUGksNKKGLJENCmetxzkCCpnt5Q",
+    metadata: {
+        name: "reality_check",
+        version: "0.1.0",
+        spec: "0.1.0",
+        description: "RealityCheck - Decentralized Media Verification",
+    },
     instructions: [
         {
-            name: "registerImage",
+            name: "register_image",
+            docs: [
+                "Registers an image on-chain by storing its hash and IPFS CID.",
+                'The account is a PDA derived from ["image", image_hash].',
+            ],
+            discriminator: [179, 217, 114, 245, 165, 236, 54, 187],
             accounts: [
                 {
-                    name: "imageState",
-                    isMut: true,
-                    isSigner: false,
+                    name: "image_state",
+                    writable: true,
                 },
                 {
                     name: "author",
-                    isMut: true,
-                    isSigner: true,
+                    writable: true,
+                    signer: true,
                 },
                 {
-                    name: "systemProgram",
-                    isMut: false,
-                    isSigner: false,
+                    name: "system_program",
+                    address: "11111111111111111111111111111111",
                 },
             ],
             args: [
                 {
-                    name: "imageHash",
+                    name: "image_hash",
                     type: "string",
                 },
                 {
-                    name: "ipfsCid",
+                    name: "ipfs_cid",
                     type: "string",
                 },
             ],
@@ -47,27 +54,7 @@ export const IDL = {
     accounts: [
         {
             name: "ImageState",
-            type: {
-                kind: "struct",
-                fields: [
-                    {
-                        name: "author",
-                        type: "publicKey",
-                    },
-                    {
-                        name: "timestamp",
-                        type: "i64",
-                    },
-                    {
-                        name: "imageHash",
-                        type: "string",
-                    },
-                    {
-                        name: "ipfsCid",
-                        type: "string",
-                    },
-                ],
-            },
+            discriminator: [130, 215, 215, 199, 43, 231, 214, 38],
         },
     ],
     errors: [
@@ -82,6 +69,36 @@ export const IDL = {
             msg: "IPFS CID must be 100 characters or less",
         },
     ],
-};
+    types: [
+        {
+            name: "ImageState",
+            type: {
+                kind: "struct",
+                fields: [
+                    {
+                        name: "author",
+                        docs: ["The wallet address of the image author"],
+                        type: "pubkey",
+                    },
+                    {
+                        name: "timestamp",
+                        docs: ["Unix timestamp when the image was registered"],
+                        type: "i64",
+                    },
+                    {
+                        name: "image_hash",
+                        docs: ["SHA-256 hash of the image (64 hex characters)"],
+                        type: "string",
+                    },
+                    {
+                        name: "ipfs_cid",
+                        docs: ["IPFS Content Identifier for the image"],
+                        type: "string",
+                    },
+                ],
+            },
+        },
+    ],
+} as const;
 
 export type RealityCheckIDL = typeof IDL;
