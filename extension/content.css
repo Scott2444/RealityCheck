@@ -1,0 +1,107 @@
+/* RealityCheck Content Script Styles */
+
+/* Verify button that appears on image hover */
+.realitycheck-verify-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: #000;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.realitycheck-verify-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+}
+
+.realitycheck-verify-btn.loading {
+    background: #6b7280;
+    cursor: wait;
+}
+
+/* Verified border styles */
+.realitycheck-verified {
+    outline: 4px solid #22c55e !important;
+    outline-offset: 2px;
+}
+
+.realitycheck-unverified {
+    outline: 4px solid #ef4444 !important;
+    outline-offset: 2px;
+}
+
+/* Status badge that shows after verification */
+.realitycheck-badge {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    z-index: 999999;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.realitycheck-badge.verified {
+    background: rgba(34, 197, 94, 0.9);
+    color: #000;
+}
+
+.realitycheck-badge.unverified {
+    background: rgba(239, 68, 68, 0.9);
+    color: #fff;
+}
+
+/* Wrapper for positioning */
+.realitycheck-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+/* Tooltip for verified images */
+.realitycheck-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #1e1e2e;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 9999999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    margin-bottom: 8px;
+    font-family:
+        -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.realitycheck-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1e1e2e;
+}

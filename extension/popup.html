@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>RealityCheck</title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                width: 320px;
+                min-height: 200px;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    sans-serif;
+                background: linear-gradient(180deg, #0a0a0f 0%, #11111b 100%);
+                color: #fff;
+                padding: 20px;
+            }
+
+            .header {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .logo {
+                width: 32px;
+                height: 32px;
+                background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+            }
+
+            .title {
+                font-size: 20px;
+                font-weight: 700;
+            }
+
+            .title span {
+                color: #4ade80;
+            }
+
+            .status-card {
+                background: #1e1e2e;
+                border-radius: 12px;
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+
+            .status-indicator {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 8px;
+            }
+
+            .status-dot {
+                width: 10px;
+                height: 10px;
+                background: #22c55e;
+                border-radius: 50%;
+                animation: pulse 2s infinite;
+            }
+
+            @keyframes pulse {
+                0%,
+                100% {
+                    opacity: 1;
+                }
+                50% {
+                    opacity: 0.5;
+                }
+            }
+
+            .status-text {
+                font-size: 14px;
+                font-weight: 600;
+            }
+
+            .description {
+                font-size: 12px;
+                color: #9ca3af;
+                line-height: 1.5;
+            }
+
+            .instructions {
+                background: #181825;
+                border-radius: 8px;
+                padding: 12px;
+            }
+
+            .instructions h3 {
+                font-size: 12px;
+                color: #4ade80;
+                margin-bottom: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .instructions ul {
+                list-style: none;
+                font-size: 12px;
+                color: #d1d5db;
+            }
+
+            .instructions li {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                margin-bottom: 6px;
+            }
+
+            .instructions li::before {
+                content: "→";
+                color: #4ade80;
+            }
+
+            .footer {
+                margin-top: 16px;
+                text-align: center;
+                font-size: 10px;
+                color: #6b7280;
+            }
+
+            .footer a {
+                color: #4ade80;
+                text-decoration: none;
+            }
+
+            .stats {
+                display: flex;
+                justify-content: space-around;
+                margin-top: 12px;
+            }
+
+            .stat {
+                text-align: center;
+            }
+
+            .stat-value {
+                font-size: 18px;
+                font-weight: 700;
+                color: #4ade80;
+            }
+
+            .stat-label {
+                font-size: 10px;
+                color: #9ca3af;
+                text-transform: uppercase;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="logo">👁️</div>
+            <div class="title"><span>Reality</span>Check</div>
+        </div>
+
+        <div class="status-card">
+            <div class="status-indicator">
+                <div class="status-dot"></div>
+                <span class="status-text">Extension Active</span>
+            </div>
+            <p class="description">
+                RealityCheck is scanning for images on this page. Click the verify
+                button that appears on hover to check any image against the
+                blockchain.
+            </p>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="imagesFound">-</div>
+                    <div class="stat-label">Images Found</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="imagesVerified">0</div>
+                    <div class="stat-label">Verified</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>How to Use</h3>
+            <ul>
+                <li>Hover over any image on the page</li>
+                <li>Click the green "Verify" button</li>
+                <li>Green border = Verified on blockchain</li>
+                <li>Red border = Not registered</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            Powered by <a href="https://solana.com" target="_blank">Solana</a>
+        </div>
+
+        <script src="popup.js"></script>
+    </body>
+</html>
