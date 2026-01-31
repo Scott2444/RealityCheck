@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("HVR5gk2KaeXxV7dNYDUGksNKKGLJENCmetxzkCCpnt5Q");
 
 #[program]
 pub mod reality_check {
@@ -42,7 +42,7 @@ pub struct RegisterImage<'info> {
         init,
         payer = author,
         space = 8 + ImageState::INIT_SPACE,
-        seeds = [b"image", image_hash.as_bytes()],
+        seeds = [b"image", &image_hash.as_bytes()[..32]],
         bump
     )]
     pub image_state: Account<'info, ImageState>,

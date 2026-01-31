@@ -6,10 +6,10 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-reality_check = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+reality_check = "HVR5gk2KaeXxV7dNYDUGksNKKGLJENCmetxzkCCpnt5Q"
 
 [programs.devnet]
-reality_check = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+reality_check = "HVR5gk2KaeXxV7dNYDUGksNKKGLJENCmetxzkCCpnt5Q"
 
 [registry]
 url = "https://api.apr.dev"
