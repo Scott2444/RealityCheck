@@ -20,6 +20,7 @@ const REALITYCHECK_API_VERIFY = `${REALITYCHECK_API_BASE}/api/verify`;
     // Track processed images to avoid duplicates
     const processedImages = new WeakSet();
     const verificationCache = new Map();
+    const verifiedImages = new WeakSet(); // Track which images have been counted in stats
 
     /**
      * Calculate SHA-256 hash of an ArrayBuffer
@@ -234,22 +235,18 @@ const REALITYCHECK_API_VERIFY = `${REALITYCHECK_API_BASE}/api/verify`;
                 console.log("RealityCheck: Verification result:", result);
 
                 // Update UI based on result
-                img.classList.remove(
-                    "realitycheck-verified",
-                    "realitycheck-unverified",
-                );
-
                 if (result.verified) {
-                    img.classList.add("realitycheck-verified");
                     verifyBtn.innerHTML = "✓ Verified";
                     verifyBtn.style.background = "#22c55e";
-                    stats.imagesVerified++;
+                    // Only increment stats if this image hasn't been verified before
+                    if (!verifiedImages.has(img)) {
+                        stats.imagesVerified++;
+                        verifiedImages.add(img);
+                    }
                 } else if (result.error) {
-                    img.classList.add("realitycheck-unverified");
                     verifyBtn.innerHTML = "⚠ Error";
                     verifyBtn.style.background = "#f59e0b";
                 } else {
-                    img.classList.add("realitycheck-unverified");
                     verifyBtn.innerHTML = "✗ Not Found";
                     verifyBtn.style.background = "#ef4444";
                 }
