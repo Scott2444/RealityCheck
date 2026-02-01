@@ -13,33 +13,23 @@ RealityCheck is a decentralized media registry that acts as a notary public for 
 ```
 RealityCheck/
 ├── program/              # Solana/Anchor smart contract
-│   ├── programs/
-│   │   └── reality_check/
-│   │       └── src/
-│   │           └── lib.rs
-│   └── tests/
-│       └── reality_check.ts
 ├── app/                  # Next.js web application
-│   └── src/
-│       ├── app/
-│       │   ├── api/verify/route.ts
-│       │   ├── layout.tsx
-│       │   └── page.tsx
-│       ├── components/
-│       │   ├── Navbar.tsx
-│       │   ├── UploadZone.tsx
-│       │   ├── VerifySection.tsx
-│       │   └── WalletProvider.tsx
-│       └── lib/
-│           └── idl.ts
 └── extension/            # Chrome browser extension
-    ├── manifest.json
-    ├── popup.html
-    ├── popup.js
-    ├── content.js
-    ├── content.css
-    └── background.js
 ```
+
+---
+
+## Tech Stack
+
+| Component      | Technology                                      |
+| -------------- | ----------------------------------------------- |
+| Blockchain     | Solana (Devnet)                                 |
+| Smart Contract | Anchor Framework (Rust)                         |
+| Frontend       | Next.js 16, React 19, TypeScript, Tailwind CSS  |
+| Web3 Client    | @solana/wallet-adapter-react, @coral-xyz/anchor |
+| Hashing        | Web Crypto API (SHA-256)                        |
+| Extension      | Chrome Manifest V3                              |
+| Icons          | Lucide React                                    |
 
 ---
 
@@ -49,9 +39,9 @@ RealityCheck/
 
 - [Rust](https://rustup.rs/) (latest stable)
 - [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) (v1.17+)
-- [Anchor Framework](https://www.anchor-lang.com/docs/installation) (v0.29+)
-- [Node.js](https://nodejs.org/) (v18+)
-- [Yarn](https://yarnpkg.com/) or npm
+- [Anchor Framework](https://www.anchor-lang.com/docs/installation) (v0.32.1+)
+- [Node.js](https://nodejs.org/) (v18.18+ recommended)
+- [Yarn](https://yarnpkg.com/) (recommended for `program/`) and/or npm
 
 ### Step 1: Setup Solana CLI
 
@@ -83,13 +73,14 @@ anchor build
 # Get your program ID
 solana address -k target/deploy/reality_check-keypair.json
 
-#   IMPORTANT: Update the program ID in these files:
+#   IMPORTANT (only if you deploy your own program):
+# If your program ID changes, update it in:
 # - Anchor.toml (both localnet and devnet)
 # - programs/reality_check/src/lib.rs (declare_id! macro)
-# - ../app/src/lib/idl.ts (PROGRAM_ID constant)
+# - ../app/src/lib/idl.ts (PROGRAM_ID + IDL.address)
 
 # Deploy to Devnet
-anchor deploy --provider.cluster devnet
+anchor deploy
 
 # Run tests
 anchor test
@@ -106,6 +97,8 @@ program/target/idl/reality_check.json
 Copy the JSON contents into the `IDL` object in `app/src/lib/idl.ts`. The format matches directly—just paste and replace the existing object.
 
 Also update the `PROGRAM_ID` if your program ID changed.
+
+> Note: This repo already includes a working `IDL` + `PROGRAM_ID` for the current deployed program. You only need to do this step if you rebuild/redeploy or modify the program.
 
 ### Step 4: Run the Next.js Application
 
@@ -129,7 +122,9 @@ The app will be available at **http://localhost:3000**
 4. Select the `extension/` folder
 5. The RealityCheck icon should appear in your toolbar
 
-> **Note:** Create placeholder icons (16x16, 48x48, 128x128 PNG files) in `extension/icons/` or the extension will show a default icon.
+The Next.js app also serves a ready-to-install zip at `app/public/extension.zip` (and the web UI links to it as `/extension.zip`).
+
+> **Note:** The extension is currently configured to call a hosted API (`https://reality-check-deployment.vercel.app/api/verify`). To use a local dev server, change `REALITYCHECK_API_BASE` in `extension/content.js` (and the matching constant in `extension/background.js`).
 
 ---
 
@@ -155,10 +150,10 @@ The app will be available at **http://localhost:3000**
 Images are stored in PDAs derived from:
 
 ```rust
-seeds = [b"image", image_hash.as_bytes()]
+seeds = [b"image", &image_hash.as_bytes()[..32]]
 ```
 
-This allows instant lookup by hash without iteration.
+This allows instant lookup by hash without iteration. The program still stores and validates the full 64-character SHA-256 hex string; the PDA uses the first 32 bytes of the string to fit seed limits.
 
 ### Image Hashing and File Formats
 
@@ -183,20 +178,6 @@ Each image format encodes pixels differently (JPEG uses lossy DCT compression, P
 **Best practice for users:** Register the original file directly from your camera or source. The exact file you register is what can be verified. If you convert, compress, or edit the image later, it will produce a different hash and won't match the blockchain record.
 
 This design is ideal for photographers, journalists, and creators who need to prove they possess the original, unmodified file.
-
----
-
-## Tech Stack
-
-| Component      | Technology                                      |
-| -------------- | ----------------------------------------------- |
-| Blockchain     | Solana (Devnet)                                 |
-| Smart Contract | Anchor Framework (Rust)                         |
-| Frontend       | Next.js 14, TypeScript, Tailwind CSS            |
-| Web3 Client    | @solana/wallet-adapter-react, @coral-xyz/anchor |
-| Hashing        | Web Crypto API (SHA-256)                        |
-| Extension      | Chrome Manifest V3                              |
-| Icons          | Lucide React                                    |
 
 ---
 
@@ -243,6 +224,11 @@ Verify an image hash against the blockchain.
 }
 ```
 
+Notes:
+
+- The API route is implemented in the Next.js app and queries Solana **Devnet**.
+- CORS is enabled (including `OPTIONS`) so the browser extension can call it.
+
 ---
 
 ## Error Handling
@@ -268,10 +254,19 @@ solana-test-validator
 
 # In another terminal
 cd program
-anchor test --skip-local-validator
+anchor test
 ```
+
+> Tip: If you want to run fully local (validator + program + app), set `cluster = "localnet"` under `[provider]` in `program/Anchor.toml`, then rebuild/deploy locally and update the app `PROGRAM_ID`/`IDL`.
 
 ### Extension Development
 
 The extension uses plain HTML/JS/CSS with no build step. Simply edit the files and reload the extension in Chrome.
 
+> Heads up: websites often resize/recompress images, which changes the bytes (and therefore the SHA-256 hash). The extension verifies the exact bytes it fetches from the page URL, so it may not match the original file a creator registered.
+
+## Future Features
+Rather than enforcing a single authority, RealityCheck is trust-agnostic. Anyone can curate or publish their own database of credible uploaders, and users are free to choose which trust lists they rely on. If you don’t trust one source list, you can switch to another, or create your own.
+
+1. Adding support for using alternative database authorities
+2. Implementing a default authority for credible uploaders made up of journalist, professional photographers, and news outlets
