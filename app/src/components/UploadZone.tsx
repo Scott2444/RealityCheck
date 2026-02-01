@@ -1,20 +1,23 @@
 "use client";
 
-import { FC, useState, useCallback } from "react";
+import { FC, useEffect, useRef, useState, useCallback } from "react";
 import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { Program, AnchorProvider, web3, BN } from "@coral-xyz/anchor";
+import { Program, AnchorProvider, web3 } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import {
     Upload,
-    Image,
+    Image as ImageIcon,
     CheckCircle,
     XCircle,
     Loader2,
     Hash,
+    Copy,
 } from "lucide-react";
 import { IDL, PROGRAM_ID } from "@/lib/idl";
 
 export const UploadZone: FC = () => {
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
     const { connection } = useConnection();
     const wallet = useWallet();
 
@@ -27,9 +30,19 @@ export const UploadZone: FC = () => {
     >("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [txSignature, setTxSignature] = useState<string | null>(null);
+    const [hashCopied, setHashCopied] = useState(false);
+
+    const MAX_FILE_SIZE_MB = 10;
+
+    useEffect(() => {
+        if (!preview) return;
+        return () => {
+            URL.revokeObjectURL(preview);
+        };
+    }, [preview]);
 
     // Calculate SHA-256 hash of file
-    const calculateHash = async (file: File): Promise<string> => {
+    const calculateHash = useCallback(async (file: File): Promise<string> => {
         const buffer = await file.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -37,7 +50,41 @@ export const UploadZone: FC = () => {
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
         return hashHex;
-    };
+    }, []);
+
+    const validateFile = useCallback(
+        (candidate: File): string | null => {
+        if (!candidate.type.startsWith("image/")) {
+            return "Please select an image file.";
+        }
+        if (candidate.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            return `Image must be ≤ ${MAX_FILE_SIZE_MB}MB.`;
+        }
+        return null;
+        },
+        [MAX_FILE_SIZE_MB],
+    );
+
+    const setSelectedFile = useCallback(async (selectedFile: File) => {
+        setStatus("idle");
+        setErrorMessage(null);
+        setTxSignature(null);
+        setHashCopied(false);
+
+        const validationError = validateFile(selectedFile);
+        if (validationError) {
+            setErrorMessage(validationError);
+            return;
+        }
+
+        setFile(selectedFile);
+        setPreview(URL.createObjectURL(selectedFile));
+
+        setStatus("hashing");
+        const hash = await calculateHash(selectedFile);
+        setImageHash(hash);
+        setStatus("idle");
+    }, [calculateHash, validateFile]);
 
     // Mock IPFS upload - In production, replace with actual IPFS/Arweave upload
     const mockIpfsUpload = async (file: File): Promise<string> => {
@@ -55,40 +102,39 @@ export const UploadZone: FC = () => {
     const handleDrop = useCallback(async (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        setStatus("idle");
-        setErrorMessage(null);
-
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile && droppedFile.type.startsWith("image/")) {
-            setFile(droppedFile);
-            setPreview(URL.createObjectURL(droppedFile));
+        if (!droppedFile) return;
 
-            setStatus("hashing");
-            const hash = await calculateHash(droppedFile);
-            setImageHash(hash);
-            setStatus("idle");
-        }
-    }, []);
+        await setSelectedFile(droppedFile);
+    }, [setSelectedFile]);
 
     // Handle file input change
     const handleFileChange = useCallback(
         async (e: React.ChangeEvent<HTMLInputElement>) => {
-            setStatus("idle");
-            setErrorMessage(null);
-
             const selectedFile = e.target.files?.[0];
-            if (selectedFile && selectedFile.type.startsWith("image/")) {
-                setFile(selectedFile);
-                setPreview(URL.createObjectURL(selectedFile));
+            if (!selectedFile) return;
 
-                setStatus("hashing");
-                const hash = await calculateHash(selectedFile);
-                setImageHash(hash);
-                setStatus("idle");
-            }
+            await setSelectedFile(selectedFile);
         },
-        [],
+        [setSelectedFile],
     );
+
+    const triggerFilePicker = () => {
+        if (!fileInputRef.current) return;
+        fileInputRef.current.value = "";
+        fileInputRef.current.click();
+    };
+
+    const handleCopyHash = async () => {
+        if (!imageHash) return;
+        try {
+            await navigator.clipboard.writeText(imageHash);
+            setHashCopied(true);
+            window.setTimeout(() => setHashCopied(false), 1200);
+        } catch {
+            // Ignore clipboard failures
+        }
+    };
 
     // Register image on Solana
     const handleRegister = async () => {
@@ -98,7 +144,11 @@ export const UploadZone: FC = () => {
             !file ||
             !imageHash
         ) {
-            setErrorMessage("Please connect your wallet first");
+            setErrorMessage(
+                !wallet.publicKey
+                    ? "Please connect your wallet first"
+                    : "Please select an image first",
+            );
             return;
         }
 
@@ -159,6 +209,8 @@ export const UploadZone: FC = () => {
         setStatus("idle");
         setErrorMessage(null);
         setTxSignature(null);
+        setHashCopied(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
     return (
@@ -167,18 +219,26 @@ export const UploadZone: FC = () => {
             {!file ? (
                 <div
                     className={`dropzone ${isDragging ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Select an image to register"
                     onDragOver={(e) => {
                         e.preventDefault();
                         setIsDragging(true);
                     }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    onClick={() =>
-                        document.getElementById("fileInput")?.click()
-                    }
+                    onClick={triggerFilePicker}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            triggerFilePicker();
+                        }
+                    }}
                 >
                     <input
                         id="fileInput"
+                        ref={fileInputRef}
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}
@@ -201,7 +261,8 @@ export const UploadZone: FC = () => {
                         />
                         <button
                             onClick={handleReset}
-                            className="absolute top-2 right-2 bg-[#11111b]/80 hover:bg-[#11111b] p-2 rounded-full transition-colors"
+                            aria-label="Remove image"
+                            className="absolute top-2 right-2 bg-[#11111b]/80 hover:bg-[#11111b] p-2 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#181825]"
                         >
                             <XCircle className="w-5 h-5" />
                         </button>
@@ -210,7 +271,7 @@ export const UploadZone: FC = () => {
                     {/* File Info */}
                     <div className="bg-[#181825] rounded-lg p-4">
                         <div className="flex items-center gap-3 mb-3">
-                            <Image className="w-5 h-5 text-green-400" />
+                            <ImageIcon className="w-5 h-5 text-green-400" />
                             <span className="font-medium truncate">
                                 {file.name}
                             </span>
@@ -222,10 +283,20 @@ export const UploadZone: FC = () => {
                         {imageHash && (
                             <div className="flex items-start gap-3">
                                 <Hash className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="text-xs text-gray-500 mb-1">
-                                        SHA-256 Hash
-                                    </p>
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <p className="text-xs text-gray-500">
+                                            SHA-256 Hash
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={handleCopyHash}
+                                            className="text-xs text-green-400 hover:underline inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#181825] rounded"
+                                        >
+                                            <Copy className="w-3.5 h-3.5" />
+                                            {hashCopied ? "Copied" : "Copy"}
+                                        </button>
+                                    </div>
                                     <code className="text-xs text-gray-300 break-all font-mono">
                                         {imageHash}
                                     </code>
@@ -277,11 +348,12 @@ export const UploadZone: FC = () => {
                             onClick={handleRegister}
                             disabled={
                                 !wallet.publicKey ||
+                                !imageHash ||
                                 status === "hashing" ||
                                 status === "uploading" ||
                                 status === "registering"
                             }
-                            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
+                            className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-black font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#1e1e2e]"
                         >
                             {status === "hashing" && (
                                 <>
@@ -305,13 +377,21 @@ export const UploadZone: FC = () => {
                                 <>
                                     <CheckCircle className="w-5 h-5" />
                                     {wallet.publicKey
-                                        ? "Register Truth"
+                                        ? imageHash
+                                            ? "Register Truth"
+                                            : "Select an Image"
                                         : "Connect Wallet to Register"}
                                 </>
                             )}
                         </button>
                     )}
                 </div>
+            )}
+
+            {!file && errorMessage && (
+                <p className="mt-4 text-sm text-red-400" role="alert">
+                    {errorMessage}
+                </p>
             )}
         </div>
     );

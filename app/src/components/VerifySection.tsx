@@ -1,18 +1,21 @@
 "use client";
 
-import { FC, useState, useCallback } from "react";
+import { FC, useEffect, useRef, useState, useCallback } from "react";
 import {
     Search,
-    Upload,
     CheckCircle,
     XCircle,
     Loader2,
     User,
     Clock,
+    Copy,
 } from "lucide-react";
 
 interface VerificationResult {
     verified: boolean;
+    message?: string;
+    error?: string;
+    details?: string;
     data?: {
         author: string;
         timestamp: number;
@@ -21,6 +24,8 @@ interface VerificationResult {
 }
 
 export const VerifySection: FC = () => {
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [imageHash, setImageHash] = useState<string | null>(null);
@@ -29,9 +34,20 @@ export const VerifySection: FC = () => {
         "idle" | "hashing" | "verifying" | "done"
     >("idle");
     const [result, setResult] = useState<VerificationResult | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [hashCopied, setHashCopied] = useState(false);
+
+    const MAX_FILE_SIZE_MB = 10;
+
+    useEffect(() => {
+        if (!preview) return;
+        return () => {
+            URL.revokeObjectURL(preview);
+        };
+    }, [preview]);
 
     // Calculate SHA-256 hash of file
-    const calculateHash = async (file: File): Promise<string> => {
+    const calculateHash = useCallback(async (file: File): Promise<string> => {
         const buffer = await file.arrayBuffer();
         const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -39,66 +55,98 @@ export const VerifySection: FC = () => {
             .map((b) => b.toString(16).padStart(2, "0"))
             .join("");
         return hashHex;
-    };
+    }, []);
+
+    const validateFile = useCallback(
+        (candidate: File): string | null => {
+        if (!candidate.type.startsWith("image/")) {
+            return "Please select an image file.";
+        }
+        if (candidate.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            return `Image must be ≤ ${MAX_FILE_SIZE_MB}MB.`;
+        }
+        return null;
+        },
+        [MAX_FILE_SIZE_MB],
+    );
+
+    // Verify image against blockchain
+    const verifyImage = useCallback(async (hash: string) => {
+        setStatus("verifying");
+
+        try {
+            const response = await fetch(`/api/verify?hash=${hash}`);
+            const data = (await response
+                .json()
+                .catch(() => ({ verified: false }))) as VerificationResult;
+
+            if (!response.ok) {
+                setResult({
+                    verified: false,
+                    message:
+                        data.error ||
+                        data.message ||
+                        "Verification request failed.",
+                    error: data.error,
+                    details: data.details,
+                });
+            } else {
+                setResult(data);
+            }
+        } catch (error) {
+            console.error("Verification error:", error);
+            setResult({
+                verified: false,
+                message: "Network error while verifying image.",
+            });
+        }
+
+        setStatus("done");
+    }, []);
+
+    const startVerificationFlow = useCallback(async (selectedFile: File) => {
+        setErrorMessage(null);
+        setResult(null);
+        setStatus("idle");
+        setHashCopied(false);
+
+        const validationError = validateFile(selectedFile);
+        if (validationError) {
+            setErrorMessage(validationError);
+            return;
+        }
+
+        setFile(selectedFile);
+        setPreview(URL.createObjectURL(selectedFile));
+
+        setStatus("hashing");
+        const hash = await calculateHash(selectedFile);
+        setImageHash(hash);
+
+        await verifyImage(hash);
+    }, [calculateHash, validateFile, verifyImage]);
 
     // Handle file drop
     const handleDrop = useCallback(async (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        setStatus("idle");
-        setResult(null);
 
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile && droppedFile.type.startsWith("image/")) {
-            setFile(droppedFile);
-            setPreview(URL.createObjectURL(droppedFile));
+        if (!droppedFile) return;
 
-            setStatus("hashing");
-            const hash = await calculateHash(droppedFile);
-            setImageHash(hash);
-
-            // Automatically verify after hashing
-            await verifyImage(hash);
-        }
-    }, []);
+        await startVerificationFlow(droppedFile);
+    }, [startVerificationFlow]);
 
     // Handle file input change
     const handleFileChange = useCallback(
         async (e: React.ChangeEvent<HTMLInputElement>) => {
-            setStatus("idle");
-            setResult(null);
-
             const selectedFile = e.target.files?.[0];
-            if (selectedFile && selectedFile.type.startsWith("image/")) {
-                setFile(selectedFile);
-                setPreview(URL.createObjectURL(selectedFile));
+            if (!selectedFile) return;
 
-                setStatus("hashing");
-                const hash = await calculateHash(selectedFile);
-                setImageHash(hash);
-
-                // Automatically verify after hashing
-                await verifyImage(hash);
-            }
+            await startVerificationFlow(selectedFile);
         },
-        [],
+        [startVerificationFlow],
     );
-
-    // Verify image against blockchain
-    const verifyImage = async (hash: string) => {
-        setStatus("verifying");
-
-        try {
-            const response = await fetch(`/api/verify?hash=${hash}`);
-            const data = await response.json();
-            setResult(data);
-        } catch (error) {
-            console.error("Verification error:", error);
-            setResult({ verified: false });
-        }
-
-        setStatus("done");
-    };
 
     // Reset the form
     const handleReset = () => {
@@ -107,6 +155,26 @@ export const VerifySection: FC = () => {
         setImageHash(null);
         setStatus("idle");
         setResult(null);
+        setErrorMessage(null);
+        setHashCopied(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    const triggerFilePicker = () => {
+        if (!fileInputRef.current) return;
+        fileInputRef.current.value = "";
+        fileInputRef.current.click();
+    };
+
+    const handleCopyHash = async () => {
+        if (!imageHash) return;
+        try {
+            await navigator.clipboard.writeText(imageHash);
+            setHashCopied(true);
+            window.setTimeout(() => setHashCopied(false), 1200);
+        } catch {
+            // Ignore clipboard failures
+        }
     };
 
     // Format timestamp
@@ -125,18 +193,26 @@ export const VerifySection: FC = () => {
             {!file ? (
                 <div
                     className={`dropzone ${isDragging ? "active" : ""}`}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Select an image to verify"
                     onDragOver={(e) => {
                         e.preventDefault();
                         setIsDragging(true);
                     }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
-                    onClick={() =>
-                        document.getElementById("verifyFileInput")?.click()
-                    }
+                    onClick={triggerFilePicker}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            triggerFilePicker();
+                        }
+                    }}
                 >
                     <input
                         id="verifyFileInput"
+                        ref={fileInputRef}
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange}
@@ -167,7 +243,8 @@ export const VerifySection: FC = () => {
                         />
                         <button
                             onClick={handleReset}
-                            className="absolute top-2 right-2 bg-[#11111b]/80 hover:bg-[#11111b] p-2 rounded-full transition-colors"
+                            aria-label="Remove image"
+                            className="absolute top-2 right-2 bg-[#11111b]/80 hover:bg-[#11111b] p-2 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#181825]"
                         >
                             <XCircle className="w-5 h-5" />
                         </button>
@@ -215,7 +292,8 @@ export const VerifySection: FC = () => {
                                     <p className="text-sm text-gray-400 mt-1">
                                         {result.verified
                                             ? "This image is registered on the Solana blockchain"
-                                            : "No blockchain record found. This image may be unregistered, modified, or AI-generated."}
+                                                                                        : result.message ||
+                                                                                            "No blockchain record found. This image may be unregistered, modified, or AI-generated."}
                                     </p>
 
                                     {/* Additional Details for Verified Images */}
@@ -258,15 +336,32 @@ export const VerifySection: FC = () => {
                     {/* Hash Display */}
                     {imageHash && (
                         <div className="bg-[#181825] rounded-lg p-3">
-                            <p className="text-xs text-gray-500 mb-1">
-                                SHA-256 Hash
-                            </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-xs text-gray-500">
+                                    SHA-256 Hash
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={handleCopyHash}
+                                    className="text-xs text-green-400 hover:underline inline-flex items-center gap-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#181825] rounded"
+                                >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    {hashCopied ? "Copied" : "Copy"}
+                                </button>
+                            </div>
                             <code className="text-xs text-gray-300 break-all font-mono">
                                 {imageHash}
                             </code>
                         </div>
                     )}
                 </div>
+            )}
+
+            {/* Inline error */}
+            {!file && errorMessage && (
+                <p className="mt-4 text-sm text-red-400" role="alert">
+                    {errorMessage}
+                </p>
             )}
         </div>
     );

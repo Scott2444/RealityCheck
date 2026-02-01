@@ -1,6 +1,6 @@
 "use client";
 
-import { FC, ReactNode, useMemo, useState, useEffect } from "react";
+import { FC, ReactNode, useMemo } from "react";
 import {
     ConnectionProvider,
     WalletProvider,
@@ -22,12 +22,10 @@ export const WalletContextProvider: FC<Props> = ({ children }) => {
     // Use Devnet for development
     const endpoint = useMemo(() => clusterApiUrl("devnet"), []);
 
-    // Only initialize wallets on the client side to avoid SSR issues
-    const [wallets, setWallets] = useState<Adapter[]>([]);
-
-    useEffect(() => {
-        setWallets([new PhantomWalletAdapter(), new SolflareWalletAdapter()]);
-    }, []);
+    const wallets = useMemo<Adapter[]>(
+        () => [new PhantomWalletAdapter(), new SolflareWalletAdapter()],
+        [],
+    );
 
     return (
         <ConnectionProvider endpoint={endpoint}>
