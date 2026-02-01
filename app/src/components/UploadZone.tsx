@@ -119,8 +119,9 @@ export const UploadZone: FC = () => {
             const program = new Program(IDL as any, provider);
 
             // Derive PDA for the image state
+            // Use only first 32 bytes of hash to match program seeds
             const [imageStatePda] = PublicKey.findProgramAddressSync(
-                [Buffer.from("image"), Buffer.from(imageHash)],
+                [Buffer.from("image"), Buffer.from(imageHash.slice(0, 32))],
                 PROGRAM_ID,
             );
 

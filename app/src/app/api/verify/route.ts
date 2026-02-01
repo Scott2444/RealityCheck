@@ -59,9 +59,9 @@ export async function GET(request: NextRequest) {
         // Initialize program
         const program = new Program(IDL as any, provider);
 
-        // Derive PDA for the image state using the hash
+        // Derive PDA for the image state using the first 32 bytes of the hash (to match registration)
         const [imageStatePda] = PublicKey.findProgramAddressSync(
-            [Buffer.from("image"), Buffer.from(hash)],
+            [Buffer.from("image"), Buffer.from(hash.slice(0, 32))],
             PROGRAM_ID,
         );
 
