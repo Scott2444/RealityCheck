@@ -21,6 +21,47 @@ export default function Home() {
                         images to the blockchain to fight disinformation.
                     </p>
 
+                    {/* Extension Download */}
+                    <div className="max-w-2xl mx-auto mb-10">
+                        <div className="rounded-2xl border border-gray-800 bg-[#12121a] p-6 md:p-7 text-left">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div>
+                                    <h2 className="text-lg md:text-xl font-semibold">
+                                        Get the RealityCheck Browser Extension
+                                    </h2>
+                                    <p className="text-sm text-gray-400 mt-1">
+                                        Not in the Chrome Web Store yet — install it manually.
+                                    </p>
+                                </div>
+                                <a
+                                    href="/extension.zip"
+                                    download
+                                    className="inline-flex items-center justify-center rounded-xl bg-green-500 px-5 py-3 font-semibold text-black hover:bg-green-400 transition-colors"
+                                >
+                                    Download Extension (.zip)
+                                </a>
+                            </div>
+
+                            <div className="mt-5 grid gap-2 text-sm text-gray-300">
+                                <p className="text-gray-400">
+                                    Install steps:
+                                </p>
+                                <p>
+                                    1) Download and unzip
+                                    <span className="font-semibold"> extension.zip</span>
+                                </p>
+                                <p>
+                                    2) Open <span className="font-semibold">chrome://extensions</span>
+                                    , enable <span className="font-semibold">Developer mode</span>
+                                </p>
+                                <p>
+                                    3) Click <span className="font-semibold">Load unpacked</span> and
+                                    select the unzipped folder
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Feature Pills */}
                     <div className="flex flex-wrap justify-center gap-4 mb-12">
                         <div className="flex items-center gap-2 bg-[#1e1e2e] px-4 py-2 rounded-full">
