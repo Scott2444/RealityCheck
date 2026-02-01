@@ -4,7 +4,7 @@
 
 **Spartahack 11** | Track: Roots and Renewal (Social Good)
 
-RealityCheck is a decentralized media registry that acts as a notary public for digital content. By leveraging Solana blockchain technology, it provides immutable Proof of Existence and Proof of Authorship for photos and videos.
+RealityCheck is a decentralized media registry that acts as a notary public for digital content. By using Solana blockchain technology, it provides immutable Proof of Existence and Proof of Authorship for photos and videos to combat artificially modified media.
 
 ---
 

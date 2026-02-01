@@ -9,7 +9,13 @@ export const metadata: Metadata = {
     title: "RealityCheck - Decentralized Media Verification",
     description:
         "Anchor your images to the Solana blockchain to fight disinformation",
-};
+        icons: {
+            icon: [
+                { url: "/RealityCheckIcon.svg", type: "image/svg+xml" },
+            ],
+            shortcut: ["/RealityCheckIcon.svg"],
+        },
+    };
 
 export default function RootLayout({
     children,
