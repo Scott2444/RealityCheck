@@ -35,7 +35,7 @@
             // Get the image source
             let imgSrc = imgElement.src || imgElement.currentSrc;
 
-            // Handle data URLs
+            // Handle data URLs directly
             if (imgSrc.startsWith("data:")) {
                 const response = await fetch(imgSrc);
                 const blob = await response.blob();
@@ -43,43 +43,26 @@
                 return calculateHash(buffer);
             }
 
-            // Fetch the image
-            const response = await fetch(imgSrc, { mode: "cors" });
-            if (!response.ok) {
-                throw new Error("Failed to fetch image");
+            // Use background script to fetch image (bypasses CORS)
+            const response = await chrome.runtime.sendMessage({
+                type: "FETCH_IMAGE",
+                url: imgSrc,
+            });
+
+            if (!response.success) {
+                throw new Error(response.error || "Failed to fetch image");
             }
 
-            const blob = await response.blob();
-            const buffer = await blob.arrayBuffer();
-            return calculateHash(buffer);
+            // Convert base64 back to ArrayBuffer
+            const binaryString = atob(response.data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return calculateHash(bytes.buffer);
         } catch (error) {
             console.error("RealityCheck: Error fetching image:", error);
-
-            // Fallback: try to get image data from canvas
-            try {
-                const canvas = document.createElement("canvas");
-                canvas.width = imgElement.naturalWidth || imgElement.width;
-                canvas.height = imgElement.naturalHeight || imgElement.height;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(imgElement, 0, 0);
-
-                return new Promise((resolve, reject) => {
-                    canvas.toBlob(async (blob) => {
-                        if (blob) {
-                            const buffer = await blob.arrayBuffer();
-                            resolve(calculateHash(buffer));
-                        } else {
-                            reject(new Error("Could not create blob"));
-                        }
-                    });
-                });
-            } catch (canvasError) {
-                console.error(
-                    "RealityCheck: Canvas fallback failed:",
-                    canvasError,
-                );
-                throw error;
-            }
+            throw error;
         }
     }
 
@@ -93,16 +76,50 @@
         }
 
         try {
-            const response = await fetch(`${API_URL}?hash=${hash}`);
+            const response = await fetch(
+                `${API_URL}?hash=${encodeURIComponent(hash)}`,
+            );
             const data = await response.json();
+
+            // If the API returns a non-2xx, treat it as an error so we don't
+            // incorrectly label it as "Not Found".
+            if (!response.ok) {
+                const errorPayload = {
+                    verified: false,
+                    error:
+                        data?.error ||
+                        data?.message ||
+                        `Verification request failed (${response.status})`,
+                    details: data?.details,
+                };
+                verificationCache.set(hash, errorPayload);
+                return errorPayload;
+            }
 
             // Cache the result
             verificationCache.set(hash, data);
 
             return data;
         } catch (error) {
+            // Common causes here: CORS blocked by page context, mixed-content,
+            // localhost unreachable. Fall back to background service worker.
             console.error("RealityCheck: Verification API error:", error);
-            return { verified: false, error: "API unavailable" };
+
+            try {
+                const data = await chrome.runtime.sendMessage({
+                    type: "VERIFY_HASH",
+                    hash,
+                });
+
+                verificationCache.set(hash, data);
+                return data;
+            } catch (fallbackError) {
+                console.error(
+                    "RealityCheck: Background verification failed:",
+                    fallbackError,
+                );
+                return { verified: false, error: "API unavailable" };
+            }
         }
     }
 
@@ -224,6 +241,10 @@
                     verifyBtn.innerHTML = "✓ Verified";
                     verifyBtn.style.background = "#22c55e";
                     stats.imagesVerified++;
+                } else if (result.error) {
+                    img.classList.add("realitycheck-unverified");
+                    verifyBtn.innerHTML = "⚠ Error";
+                    verifyBtn.style.background = "#f59e0b";
                 } else {
                     img.classList.add("realitycheck-unverified");
                     verifyBtn.innerHTML = "✗ Not Found";

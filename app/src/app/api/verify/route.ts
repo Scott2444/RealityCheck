@@ -3,6 +3,12 @@ import { Connection, PublicKey, clusterApiUrl, Keypair } from "@solana/web3.js";
 import { Program, AnchorProvider, Wallet } from "@coral-xyz/anchor";
 import { IDL, PROGRAM_ID } from "@/lib/idl";
 
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+} as const;
+
 // Read-only wallet for fetching data (no signing needed)
 class ReadOnlyWallet implements Wallet {
     publicKey: PublicKey;
@@ -32,7 +38,7 @@ export async function GET(request: NextRequest) {
         if (!hash) {
             return NextResponse.json(
                 { error: "Missing hash parameter", verified: false },
-                { status: 400 },
+                { status: 400, headers: corsHeaders },
             );
         }
 
@@ -43,7 +49,7 @@ export async function GET(request: NextRequest) {
                     error: "Invalid hash format. Expected 64 hex characters.",
                     verified: false,
                 },
-                { status: 400 },
+                { status: 400, headers: corsHeaders },
             );
         }
 
@@ -85,14 +91,14 @@ export async function GET(request: NextRequest) {
                     imageHash: imageState.imageHash,
                     ipfsCid: imageState.ipfsCid,
                 },
-            });
+            }, { headers: corsHeaders });
         } catch (fetchError: any) {
             // Account doesn't exist - image not registered
             if (fetchError.message?.includes("Account does not exist")) {
                 return NextResponse.json({
                     verified: false,
                     message: "Image not found in blockchain registry",
-                });
+                }, { headers: corsHeaders });
             }
             throw fetchError;
         }
@@ -104,7 +110,7 @@ export async function GET(request: NextRequest) {
                 error: "Failed to verify image",
                 details: error.message,
             },
-            { status: 500 },
+            { status: 500, headers: corsHeaders },
         );
     }
 }
@@ -113,10 +119,6 @@ export async function GET(request: NextRequest) {
 export async function OPTIONS() {
     return new NextResponse(null, {
         status: 200,
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
-        },
+        headers: corsHeaders,
     });
 }
