@@ -33,10 +33,10 @@
     async function getImageHash(imgElement) {
         try {
             // Get the image source
-            let imgSrc = imgElement.src || imgElement.currentSrc;
+            let imgSrc = imgElement.currentSrc || imgElement.src;
 
             // Handle data URLs directly
-            if (imgSrc.startsWith("data:")) {
+            if (imgSrc.startsWith("data:") || imgSrc.startsWith("blob:")) {
                 const response = await fetch(imgSrc);
                 const blob = await response.blob();
                 const buffer = await blob.arrayBuffer();
@@ -129,7 +129,7 @@
     function createVerifyButton() {
         const button = document.createElement("button");
         button.className = "realitycheck-verify-btn";
-        button.innerHTML = "👁️ Verify";
+        button.innerHTML = "Verify";
         button.style.display = "none";
         return button;
     }
@@ -219,7 +219,7 @@
 
             // Show loading state
             verifyBtn.classList.add("loading");
-            verifyBtn.innerHTML = "⏳ Checking...";
+            verifyBtn.innerHTML = "Checking...";
 
             try {
                 // Calculate hash
