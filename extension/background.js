@@ -49,9 +49,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === "VERIFY_HASH") {
-        // Forward verification request to API
+        // Use the same API URL as the content script
+        const REALITYCHECK_API_BASE = "https://reality-check-deployment.vercel.app";
+        const REALITYCHECK_API_VERIFY = `${REALITYCHECK_API_BASE}/api/verify`;
         fetch(
-            `http://localhost:3000/api/verify?hash=${encodeURIComponent(
+            `${REALITYCHECK_API_VERIFY}?hash=${encodeURIComponent(
                 message.hash,
             )}`,
         )

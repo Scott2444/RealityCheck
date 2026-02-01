@@ -1,11 +1,14 @@
 // RealityCheck Content Script
 // Adds verification buttons to images and checks them against the blockchain
 
+
+const REALITYCHECK_API_BASE = "https://reality-check-deployment.vercel.app";
+const REALITYCHECK_API_VERIFY = `${REALITYCHECK_API_BASE}/api/verify`;
+
 (function () {
     "use strict";
 
     // Configuration
-    const API_URL = "http://localhost:3000/api/verify";
     const MIN_IMAGE_SIZE = 50; // Minimum width/height to add verify button
 
     // Stats tracking
@@ -77,7 +80,7 @@
 
         try {
             const response = await fetch(
-                `${API_URL}?hash=${encodeURIComponent(hash)}`,
+                `${REALITYCHECK_API_VERIFY}?hash=${encodeURIComponent(hash)}`,
             );
             const data = await response.json();
 
@@ -285,6 +288,12 @@
      * Initialize extension
      */
     function init() {
+        // Don't run on RealityCheck's own website
+        if (window.location.href.includes("reality-check-deployment.vercel.app")) {
+            console.log("RealityCheck: Skipping extension on RealityCheck website");
+            return;
+        }
+
         console.log("RealityCheck: Content script loaded");
 
         // Initial scan
